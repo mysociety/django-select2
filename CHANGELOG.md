@@ -1,6 +1,10 @@
 Changelog Summary
 =================
 
+### v4.3.2.1
+
+* Django 1.9 support added.
+
 ### v4.3.2
 
 * Use `django.contrib.staticfiles.templatetags.staticfiles.static` over `django.templatetags.static.static` to allow hashing.

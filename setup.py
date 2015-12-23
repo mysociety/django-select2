@@ -15,11 +15,13 @@ def read(file_name):
 
 
 PACKAGE = "django_select2"
-NAME = "Django-Select2"
+NAME = "mysociety-Django-Select2"
 DESCRIPTION = "Select2 option fields for Django"
 AUTHOR = "Nirupam Biswas"
 AUTHOR_EMAIL = "admin@applegrew.com"
-URL = "https://github.com/applegrew/django-select2"
+MAINTAINER = "Matthew Somerville"
+MAINTAINER_EMAIL = "matthew@mysociety.org"
+URL = "https://github.com/mysociety/django-select2"
 VERSION = __import__(PACKAGE).__version__
 
 
@@ -91,6 +93,8 @@ setup(
     long_description=read("README.md"),
     author=AUTHOR,
     author_email=AUTHOR_EMAIL,
+    maintainer=MAINTAINER,
+    maintainer_email=MAINTAINER_EMAIL,
     license="LICENSE.txt",
     url=URL,
     packages=find_packages(),
