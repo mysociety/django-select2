@@ -10,7 +10,7 @@ import re
 from itertools import chain
 
 from django import forms
-from django.core.urlresolvers import reverse
+from django.urls import reverse
 from django.core.validators import EMPTY_VALUES
 from django.utils.datastructures import MultiValueDict
 from django.utils.encoding import force_text
@@ -190,7 +190,7 @@ class Select2Mixin(object):
         js += '$(hashedSelector).select2(%s);' % (options)
         return js
 
-    def render(self, name, value, attrs=None, choices=()):
+    def render(self, name, value, attrs=None, renderer=None):
         """
         Renders this widget. HTML and JS code blocks all are rendered by this.
 
@@ -198,15 +198,13 @@ class Select2Mixin(object):
         :rtype: :py:obj:`unicode`
         """
 
-        args = [name, value, attrs]
-        if choices:
-            args.append(choices)
+        args = [name, value, attrs, renderer]
 
         s = text_type(super(Select2Mixin, self).render(*args))  # Thanks to @ouhouhsami Issue#1
         s += self.media.render()
         final_attrs = self.build_attrs(attrs)
         id_ = final_attrs.get('id', None)
-        s += self.render_js_code(id_, name, value, attrs, choices)
+        s += self.render_js_code(id_, name, value, attrs)
 
         return mark_safe(s)
 
@@ -288,9 +286,9 @@ class MultipleSelect2HiddenInput(forms.TextInput):
     would be available as list.
     """
 
-    def render(self, name, value, attrs=None, choices=()):
+    def render(self, name, value, attrs=None, renderer=None):
         attrs = self.build_attrs(attrs, multiple='multiple')
-        s = text_type(super(MultipleSelect2HiddenInput, self).render(name, "", attrs))
+        s = text_type(super(MultipleSelect2HiddenInput, self).render(name, "", attrs, renderer))
         id_ = attrs.get('id', None)
         if id_:
             jscode = ''
@@ -406,23 +404,18 @@ class HeavySelect2Mixin(Select2Mixin):
         self.options['initSelection'] = '*START*django_select2.onInit*END*'
         super(HeavySelect2Mixin, self).__init__(**kwargs)
 
-    def render_texts(self, selected_choices, choices):
+    def render_texts(self, selected_choices):
         """
         Renders a JS array with labels for the ``selected_choices``.
 
         :param selected_choices: List of selected choices' values.
         :type selected_choices: :py:obj:`list` or :py:obj:`tuple`
 
-        :param choices: Extra choices, if any. This is a list of tuples. In each tuple, the first
-            item is the choice value and the second item is choice label.
-        :type choices: :py:obj:`list` or :py:obj:`tuple`
-
         :return: The rendered JS array code.
         :rtype: :py:obj:`unicode`
         """
         selected_choices = list(force_text(v) for v in selected_choices)
         txts = []
-        all_choices = choices if choices else []
         choices_dict = dict()
         self_choices = self.choices
 
@@ -430,7 +423,7 @@ class HeavySelect2Mixin(Select2Mixin):
         if isinstance(self_choices, fields.FilterableModelChoiceIterator):
             self_choices.set_extra_filter(**{'%s__in' % self.field.get_pk_field_name(): selected_choices})
 
-        for val, txt in chain(self_choices, all_choices):
+        for val, txt in self_choices:
             val = force_text(val)
             choices_dict[val] = force_text(txt)
 
@@ -458,7 +451,7 @@ class HeavySelect2Mixin(Select2Mixin):
 
         return super(HeavySelect2Mixin, self).get_options()
 
-    def render_texts_for_value(self, id_, value, choices):
+    def render_texts_for_value(self, id_, value):
         """
         Renders the JS code which sets the ``txt`` attribute on the field. It gets the array
         of lables from :py:meth:`.render_texts`.
@@ -469,10 +462,6 @@ class HeavySelect2Mixin(Select2Mixin):
         :param value: Currently set value on the field.
         :type value: Any
 
-        :param choices: Extra choices, if any. This is a list of tuples. In each tuple, the first
-            item is the choice value and the second item is choice label.
-        :type choices: :py:obj:`list` or :py:obj:`tuple`
-
         :return: JS code which sets the ``txt`` attribute.
         :rtype: :py:obj:`unicode`
         """
@@ -480,16 +469,16 @@ class HeavySelect2Mixin(Select2Mixin):
         if value is not None and (self.field is None or value not in empty_values):
             # Just like forms.Select.render() it assumes that value will be single valued.
             values = [value]
-            texts = self.render_texts(values, choices)
+            texts = self.render_texts(values)
             if texts:
                 return "$('#%s').txt(%s);" % (id_, texts)
 
-    def render_inner_js_code(self, id_, name, value, attrs=None, choices=(), *args):
+    def render_inner_js_code(self, id_, name, value, attrs=None, *args):
         js = '$(hashedSelector).change(django_select2.onValChange).data("userGetValText", null);'
-        texts = self.render_texts_for_value(id_, value, choices)
+        texts = self.render_texts_for_value(id_, value)
         if texts:
             js += texts
-        js += super(HeavySelect2Mixin, self).render_inner_js_code(id_, name, value, attrs, choices, *args)
+        js += super(HeavySelect2Mixin, self).render_inner_js_code(id_, name, value, attrs, *args)
         return js
 
     def _get_media(self):
@@ -570,7 +559,7 @@ class HeavySelect2MultipleWidget(HeavySelect2Mixin, MultipleSelect2HiddenInput):
         self.options.pop('minimumResultsForSearch', None)
         self.options['separator'] = '*START*django_select2.MULTISEPARATOR*END*'
 
-    def render_texts_for_value(self, id_, value, choices):
+    def render_texts_for_value(self, id_, value):
         """
         Renders the JS code which sets the ``txt`` attribute on the field. It gets the array
         of lables from :py:meth:`.render_texts`.
@@ -581,16 +570,12 @@ class HeavySelect2MultipleWidget(HeavySelect2Mixin, MultipleSelect2HiddenInput):
         :param value: **List** of currently set value on the field.
         :type value: :py:obj:`list`
 
-        :param choices: Extra choices, if any. This is a list of tuples. In each tuple, the first
-            item is the choice value and the second item is choice label.
-        :type choices: :py:obj:`list` or :py:obj:`tuple`
-
         :return: JS code which sets the ``txt`` attribute.
         :rtype: :py:obj:`unicode`
         """
         # Just like forms.SelectMultiple.render() it assumes that value will be multi-valued (list).
         if value:
-            texts = self.render_texts(value, choices)
+            texts = self.render_texts(value)
             if texts:
                 return '$("#%s").txt(%s);' % (id_, texts)
 

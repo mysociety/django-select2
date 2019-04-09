@@ -1,6 +1,10 @@
 Changelog Summary
 =================
 
+### v4.3.2.2
+
+* Fixes for Django 2.1 'renderer' and django.urls.
+
 ### v4.3.2.1
 
 * Django 1.9 support added.
